@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Briefcase, Star, Loader2, Sparkles, Save, Check } from 'lucide-react';
-import { model } from '@/lib/gemini';
+import { model, genAI } from '@/lib/gemini';
 import { db, auth } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -22,6 +22,8 @@ export default function RoadmapGenerator() {
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
 
+    const [error, setError] = useState<string | null>(null);
+
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
         return () => unsubscribe();
@@ -34,6 +36,7 @@ export default function RoadmapGenerator() {
         setLoading(true);
         setRoadmap(null);
         setSaved(false);
+        setError(null);
 
         try {
             const prompt = `
@@ -47,7 +50,19 @@ export default function RoadmapGenerator() {
         Do not include markdown formatting or backticks in the response. Just the raw JSON.
       `;
 
-            const result = await model.generateContent(prompt);
+            let result;
+            try {
+                result = await model.generateContent(prompt);
+            } catch (primaryError: any) {
+                if (primaryError.message?.includes("429") || primaryError.message?.includes("Quota exceeded")) {
+                    console.warn("Primary model quota exceeded, attempting fallback to gemini-3-flash-preview...");
+                    const fallbackModel = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+                    result = await fallbackModel.generateContent(prompt);
+                } else {
+                    throw primaryError;
+                }
+            }
+
             const response = await result.response;
             const text = response.text();
 
@@ -55,9 +70,13 @@ export default function RoadmapGenerator() {
 
             const data: RoadmapStep[] = JSON.parse(cleanText);
             setRoadmap(data);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error generating roadmap:", error);
-            alert("Failed to generate roadmap. Please try again.");
+            if (error.message?.includes("429") || error.message?.includes("Quota exceeded")) {
+                setError("Usage limit reached for both models. Please try again in a few moments.");
+            } else {
+                setError("Failed to generate roadmap. Please try again.");
+            }
         } finally {
             setLoading(false);
         }
@@ -128,23 +147,31 @@ export default function RoadmapGenerator() {
                         </div>
                     </div>
 
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full md:w-auto px-8 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                        {loading ? (
-                            <>
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                                Generating Plan...
-                            </>
-                        ) : (
-                            <>
-                                <Sparkles className="w-5 h-5" />
-                                Generate Roadmap
-                            </>
+                    <div className="space-y-4">
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full md:w-auto px-8 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                            {loading ? (
+                                <>
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                    Generating Plan...
+                                </>
+                            ) : (
+                                <>
+                                    <Sparkles className="w-5 h-5" />
+                                    Generate Roadmap
+                                </>
+                            )}
+                        </button>
+
+                        {error && (
+                            <div className="p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm">
+                                {error}
+                            </div>
                         )}
-                    </button>
+                    </div>
                 </form>
             </div>
 
