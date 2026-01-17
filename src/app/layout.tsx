@@ -19,6 +19,9 @@ export const metadata: Metadata = {
   icons: {
     icon: '/icon.svg',
   },
+  verification: {
+    google: "6ks0OEE8dz54I4TKVW0MZlPgwYFfIf6OiP_UXi0xwo0",
+  },
 };
 
 export default function RootLayout({
@@ -28,7 +31,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <meta name="google-site-verification" content="6ks0OEE8dz54I4TKVW0MZlPgwYFfIf6OiP_UXi0xwo0" />
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
