@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   title: "Xplore",
   description: "Dream Job Roadmap Generator",
   icons: {
-    icon: '/icon.png',
+    icon: '/icon.svg',
   },
 };
 
@@ -28,6 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <meta name="google-site-verification" content="6ks0OEE8dz54I4TKVW0MZlPgwYFfIf6OiP_UXi0xwo0" />
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
